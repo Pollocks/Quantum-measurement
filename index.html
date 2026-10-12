@@ -38,6 +38,10 @@
   .info-wrap { margin-top:14px; }
   .info-panel { margin-top:9px; padding:10px 11px; border:1px solid #eaecf0; border-radius:7px; background:#fafbfc; font-size:12px; color:#475467; line-height:1.5; }
   .info-panel[hidden] { display:none; }
+  .math-panel {font-size:14px;line-height:1.65;color:#344054;}
+  .math-panel p {margin:9px 0;}
+  .math-panel .equation {overflow-x:auto;text-align:center;padding:12px 4px;font-size:19px;color:#1f2937;}
+  .math-panel math {font-size:1.12em;}
   .note { margin-top:12px; font-size:12px; color:var(--muted); line-height:1.45; }
   .foot { margin-top:16px; font-size:12px; color:var(--muted); line-height:1.45; }
   @media (max-width:800px) { .layout { grid-template-columns:1fr; } }
@@ -111,7 +115,7 @@
 
   <div id="stateEditor" class="editor-overlay" hidden><div class="editor-dialog" role="dialog" aria-modal="true" aria-labelledby="editorTitle"><h2 id="editorTitle">Custom initial state</h2><p>Enter signed real coefficients (negative values are allowed). Apply automatically normalizes the state.</p><div id="editorRows"></div><p id="editorError" style="color:#b42318" aria-live="polite"></p><div class="row"><button id="cancelEdit">Cancel</button><button id="applyEdit" class="primary">Normalize &amp; Apply</button></div></div></div>
   <div class="info-wrap">
-    <button id="infoBtn">Info</button>
+    <div class="row"><button id="infoBtn" type="button">Info</button><button id="mathBtn" type="button" aria-expanded="false" aria-controls="mathPanel">Show math</button></div>
     <div id="infoPanel" class="info-panel" hidden>
       <div><b>Units:</b> the well width is L = 1 and the ground-state energy is E<sub>1</sub> = 1. Thus E<sub>n</sub> = n<sup>2</sup>, and time is measured in &hbar;/E<sub>1</sub>. At 1× speed, dimensionless time τ = E<sub>1</sub>t/&hbar; advances at 0.30 units per second of real time.</div>
       <div style="margin-top:7px"><b>Position measurement:</b> the result is sampled from the pre-measurement |&psi;(x,t)|<sup>2</sup>. The post-measurement state is a Gaussian-like packet multiplied by sin(&pi;x/L), so it is exactly zero at the walls. &Delta;x controls its approximate width. The localized state is projected onto 60 box eigenstates.</div>
@@ -119,6 +123,25 @@
       <div style="margin-top:7px"><b>Initial state:</b> Reset prepares a normalized superposition of the selected number of low-lying eigenstates. With 2 states, the default is the equal-weight, phase-aligned state (|1&rangle;+|2&rangle;)/&radic;2.</div>
       <div style="margin-top:7px"><b>Coefficient signs:</b> The + and − symbols below the energy histogram record the signs of the real coefficients at the most recent preparation or measurement; coefficients generally become complex during subsequent time evolution. A small 0 indicates zero amplitude.</div>
       <div style="margin-top:7px">The finite 60-state basis is a deliberate pedagogical approximation, especially after a narrow position measurement.</div>
+    </div>
+    <div id="mathPanel" class="info-panel math-panel" hidden>
+      <p><b>1. State immediately after a position measurement</b></p>
+      <p>The measurement outcome <i>x</i><sub>0</sub> is randomly sampled from the probability density just before measurement. We prepare a narrow, real Gaussian-like wavefunction centered at <i>x</i><sub>0</sub>:</p>
+      <div class="equation"><math display="block"><mrow><mi>ψ</mi><mo>(</mo><mi>x</mi><mo>,</mo><msup><mi>t</mi><mo>+</mo></msup><mo>)</mo><mo>∝</mo><msup><mi>e</mi><mrow><mo>−</mo><mfrac><msup><mrow><mo>(</mo><mi>x</mi><mo>−</mo><msub><mi>x</mi><mn>0</mn></msub><mo>)</mo></mrow><mn>2</mn></msup><mrow><mn>4</mn><msup><mi>σ</mi><mn>2</mn></msup></mrow></mfrac></mrow></msup><mi>sin</mi><mo>(</mo><mfrac><mrow><mi>π</mi><mi>x</mi></mrow><mi>L</mi></mfrac><mo>)</mo><mo>.</mo></mrow></math></div>
+      <p>The sine factor makes the packet vanish at the walls (<i>x</i> = 0 and <i>x</i> = <i>L</i>). The parameter σ sets the packet width; the simulation normalizes the resulting state.</p>
+      <p><b>2. Expansion in the energy eigenbasis</b></p>
+      <div class="equation"><math display="block"><mrow><mi>ψ</mi><mo>(</mo><mi>x</mi><mo>,</mo><msup><mi>t</mi><mo>+</mo></msup><mo>)</mo><mo>≈</mo><munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msub><mi>c</mi><mi>n</mi></msub><msub><mi>ϕ</mi><mi>n</mi></msub><mo>(</mo><mi>x</mi><mo>)</mo><mo>,</mo></mrow></math></div>
+      <p>where the infinite-well eigenfunctions are</p>
+      <div class="equation"><math display="block"><mrow><msub><mi>ϕ</mi><mi>n</mi></msub><mo>(</mo><mi>x</mi><mo>)</mo><mo>=</mo><msqrt><mfrac><mn>2</mn><mi>L</mi></mfrac></msqrt><mi>sin</mi><mo>(</mo><mfrac><mrow><mi>n</mi><mi>π</mi><mi>x</mi></mrow><mi>L</mi></mfrac><mo>)</mo><mo>.</mo></mrow></math></div>
+      <p>The expansion coefficients are calculated by projection:</p>
+      <div class="equation"><math display="block"><mrow><msub><mi>c</mi><mi>n</mi></msub><mo>=</mo><msubsup><mo>∫</mo><mn>0</mn><mi>L</mi></msubsup><msub><mi>ϕ</mi><mi>n</mi></msub><mo>(</mo><mi>x</mi><mo>)</mo><mi>ψ</mi><mo>(</mo><mi>x</mi><mo>,</mo><msup><mi>t</mi><mo>+</mo></msup><mo>)</mo><mi>d</mi><mi>x</mi><mo>.</mo></mrow></math></div>
+      <p>Because both functions in the integrand are real, every coefficient <i>c</i><sub>n</sub> is real immediately after measurement, although some may be negative. Their phases are therefore 0 or π, relative to the chosen real eigenfunctions.</p>
+      <p><b>3. Subsequent Schrödinger evolution</b></p>
+      <div class="equation"><math display="block"><mrow><mi>ψ</mi><mo>(</mo><mi>x</mi><mo>,</mo><mi>t</mi><mo>)</mo><mo>=</mo><munderover><mo>∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>N</mi></munderover><msub><mi>c</mi><mi>n</mi></msub><msup><mi>e</mi><mrow><mo>−</mo><mi>i</mi><msub><mi>E</mi><mi>n</mi></msub><mo>(</mo><mi>t</mi><mo>−</mo><msup><mi>t</mi><mo>+</mo></msup><mo>)</mo><mo>/</mo><mi>ℏ</mi></mrow></msup><msub><mi>ϕ</mi><mi>n</mi></msub><mo>(</mo><mi>x</mi><mo>)</mo><mo>.</mo></mrow></math></div>
+      <p>Relative phases develop, so |ψ(<i>x</i>,<i>t</i>)|² changes with time, while each energy probability <i>P</i><sub>n</sub> = |<i>c</i><sub>n</sub>|² remains constant until another measurement.</p>
+      <p><b>4. Energy measurement</b></p>
+      <p>Measuring energy gives <i>E</i><sub>n</sub> = <i>n</i>²<i>E</i><sub>1</sub> with probability |<i>c</i><sub>n</sub>|² and leaves the particle in the corresponding eigenstate. Its probability density is then stationary, although the phase and the simulation clock continue evolving.</p>
+      <p><b>Numerical approximation:</b> The simulation uses <i>L</i> = 1 and a finite basis of <i>N</i> = 60 states. The localized packet is projected numerically onto this basis and renormalized. Consequently, very narrow packets are approximate rather than exact Gaussians.</p>
     </div>
   </div>
 </div>
@@ -147,6 +170,8 @@ const measurementEl = document.getElementById('measurement');
 const timeLabel = document.getElementById('timeLabel');
 const stateLabel = document.getElementById('stateLabel');
 const infoBtn = document.getElementById('infoBtn');
+const mathBtn = document.getElementById('mathBtn');
+const mathPanel = document.getElementById('mathPanel');
 const infoPanel = document.getElementById('infoPanel');
 
 const NMAX = 60;
@@ -574,6 +599,11 @@ dxInput.addEventListener('input', () => dxVal.textContent = Number(dxInput.value
 nStatesInput.addEventListener('change', () => { if (nStatesInput.value === 'custom') openEditor(); else resetSelectedState(); });
 infoBtn.addEventListener('click', () => {
   infoPanel.hidden = !infoPanel.hidden;
+});
+mathBtn.addEventListener('click', () => {
+  mathPanel.hidden = !mathPanel.hidden;
+  mathBtn.textContent = mathPanel.hidden ? 'Show math' : 'Hide math';
+  mathBtn.setAttribute('aria-expanded', String(!mathPanel.hidden));
 });
 
 function frame(now) {
