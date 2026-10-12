@@ -41,6 +41,7 @@
   .note { margin-top:12px; font-size:12px; color:var(--muted); line-height:1.45; }
   .foot { margin-top:16px; font-size:12px; color:var(--muted); line-height:1.45; }
   @media (max-width:800px) { .layout { grid-template-columns:1fr; } }
+  .editor-overlay[hidden] {display:none} .editor-overlay {position:fixed;inset:0;background:#10182888;z-index:100;display:flex;align-items:center;justify-content:center;padding:16px} .editor-dialog {background:white;border-radius:12px;padding:22px;max-width:510px;width:100%;box-shadow:0 16px 50px #0004} .editor-dialog h2 {margin:0 0 9px} .editor-dialog p {font-size:13px;line-height:1.5} .edit-row {display:grid;grid-template-columns:85px 1fr;gap:12px;align-items:center;margin:9px 0} .edit-row input {width:100%;box-sizing:border-box;padding:7px} .edit-head {font-size:12px;color:#475467} 
 </style>
 </head>
 <body>
@@ -50,6 +51,7 @@
 
   <div class="layout">
     <div class="card plot-card">
+      <div class="row" style="justify-content:flex-end;align-items:center;margin-bottom:5px;gap:7px"><label style="font-size:12px"><input type="checkbox" id="midpointLine"> Show reference line</label><span id="referencePosition" style="font-size:12px;color:#667085" hidden>x/L = 0.500</span><span style="margin-left:auto;font-size:12px">Vertical zoom</span><button id="zoomIn" type="button" title="Zoom in vertically">+</button><button id="zoomOut" type="button" title="Zoom out vertically">−</button></div>
       <canvas id="plot" width="740" height="430"></canvas>
       <div class="legend"><span id="timeLabel">t = 0.00</span><span>Well: 0 &le; x &le; L</span><span id="stateLabel">superposition</span></div>
       <div class="energy-wrap">
@@ -68,19 +70,10 @@
           <button id="resetBtn">Reset</button>
         </div>
         <div style="margin-top:11px">
-          <label for="speed">Speed <span class="value" id="speedVal">0.10x</span></label>
-          <input id="speed" type="range" min="0.03" max="0.25" step="0.01" value="0.10">
+          <label for="speed">Speed <span class="value" id="speedVal">1.00x</span></label>
+          <input id="speed" type="range" min="0.0125" max="0.25" step="0.0025" value="0.25">
         </div>
-        <div style="margin-top:12px">
-          <label style="display:flex; gap:7px; align-items:center; cursor:pointer">
-            <input id="holdScale" type="checkbox" checked>
-            Hold vertical scale between measurements
-          </label>
-          <label style="display:flex; gap:7px; align-items:center; cursor:pointer; margin-top:8px">
-            <input id="showEnergy" type="checkbox">
-            Show energy probability histogram
-          </label>
-        </div>
+
       </div>
 
       <div class="group">
@@ -88,7 +81,7 @@
         <button id="measureX" class="primary">Measure x</button>
         <div style="margin-top:11px">
           <label for="dx">&Delta;x <span class="value" id="dxVal">0.10 L</span></label>
-          <input id="dx" type="range" min="0.04" max="0.20" step="0.01" value="0.10">
+          <input id="dx" type="range" min="0.02" max="0.20" step="0.01" value="0.10">
         </div>
       </div>
 
@@ -106,7 +99,9 @@
           <option value="3">3</option>
           <option value="4">4</option>
           <option value="5">5</option>
+          <option value="custom">Custom</option>
         </select>
+        <button id="editState" style="margin-top:9px">Edit initial state…</button>
       </div>
 
       <div class="status" id="status"></div>
@@ -114,14 +109,16 @@
     </div>
   </div>
 
+  <div id="stateEditor" class="editor-overlay" hidden><div class="editor-dialog" role="dialog" aria-modal="true" aria-labelledby="editorTitle"><h2 id="editorTitle">Custom initial state</h2><p>Enter signed real coefficients (negative values are allowed). Apply automatically normalizes the state.</p><div id="editorRows"></div><p id="editorError" style="color:#b42318" aria-live="polite"></p><div class="row"><button id="cancelEdit">Cancel</button><button id="applyEdit" class="primary">Normalize &amp; Apply</button></div></div></div>
   <div class="info-wrap">
     <button id="infoBtn">Info</button>
     <div id="infoPanel" class="info-panel" hidden>
-      <div><b>Units:</b> the well width is L = 1 and the ground-state energy is E<sub>1</sub> = 1. Thus E<sub>n</sub> = n<sup>2</sup>, and time is measured in &hbar;/E<sub>1</sub>.</div>
-      <div style="margin-top:7px"><b>Position measurement:</b> the result is sampled from the pre-measurement |&psi;(x,t)|<sup>2</sup>. The post-measurement state is a Gaussian-like packet multiplied by sin(&pi;x/L), so it is exactly zero at the walls. &Delta;x controls its approximate width. The localized state is projected onto 40 box eigenstates.</div>
+      <div><b>Units:</b> the well width is L = 1 and the ground-state energy is E<sub>1</sub> = 1. Thus E<sub>n</sub> = n<sup>2</sup>, and time is measured in &hbar;/E<sub>1</sub>. At 1× speed, dimensionless time τ = E<sub>1</sub>t/&hbar; advances at 0.30 units per second of real time.</div>
+      <div style="margin-top:7px"><b>Position measurement:</b> the result is sampled from the pre-measurement |&psi;(x,t)|<sup>2</sup>. The post-measurement state is a Gaussian-like packet multiplied by sin(&pi;x/L), so it is exactly zero at the walls. &Delta;x controls its approximate width. The localized state is projected onto 60 box eigenstates.</div>
       <div style="margin-top:7px"><b>Energy measurement:</b> the result is sampled from the current eigenstate probabilities and collapses the system to that box eigenstate. Its |&psi;|<sup>2</sup> remains stationary while the clock continues to advance.</div>
       <div style="margin-top:7px"><b>Initial state:</b> Reset prepares a normalized superposition of the selected number of low-lying eigenstates. With 2 states, the default is the equal-weight, phase-aligned state (|1&rangle;+|2&rangle;)/&radic;2.</div>
-      <div style="margin-top:7px">The finite 40-state basis is a deliberate pedagogical approximation, especially after a narrow position measurement.</div>
+      <div style="margin-top:7px"><b>Coefficient signs:</b> The + and − symbols below the energy histogram record the signs of the real coefficients at the most recent preparation or measurement; coefficients generally become complex during subsequent time evolution. A small 0 indicates zero amplitude.</div>
+      <div style="margin-top:7px">The finite 60-state basis is a deliberate pedagogical approximation, especially after a narrow position measurement.</div>
     </div>
   </div>
 </div>
@@ -139,8 +136,8 @@ const measureXBtn = document.getElementById('measureX');
 const measureEBtn = document.getElementById('measureE');
 const speedInput = document.getElementById('speed');
 const speedVal = document.getElementById('speedVal');
-const holdScaleInput = document.getElementById('holdScale');
-const showEnergyInput = document.getElementById('showEnergy');
+
+
 const energyCard = document.getElementById('energyCard');
 const dxInput = document.getElementById('dx');
 const dxVal = document.getElementById('dxVal');
@@ -152,13 +149,20 @@ const stateLabel = document.getElementById('stateLabel');
 const infoBtn = document.getElementById('infoBtn');
 const infoPanel = document.getElementById('infoPanel');
 
-const NMAX = 40;
+const NMAX = 60;
+let preparedSigns = new Int8Array(NMAX + 1);
+function recordSigns() { for (let n=1;n<=NMAX;n++) preparedSigns[n] = Math.abs(coeffRe[n]) < 1e-9 && Math.abs(coeffIm[n]) < 1e-9 ? 0 : (coeffRe[n] < 0 ? -1 : 1); }
 const SAMPLES = 900;
 const dtVisual = 0.0045;
 let coeffRe = new Float64Array(NMAX + 1);
 let coeffIm = new Float64Array(NMAX + 1);
 let xGrid = new Float64Array(SAMPLES + 1);
 let density = new Float64Array(SAMPLES + 1);
+let referenceX = 0.5;
+let draggingReference = false;
+const plotPad = {left:62,right:18,top:20,bottom:48};
+const referenceToggle = document.getElementById('midpointLine');
+const referencePositionLabel = document.getElementById('referencePosition');
 let time = 0;
 let running = false;
 let stationary = false;
@@ -194,12 +198,11 @@ function setInitialState(count) {
   } else {
     for (let n = 1; n <= count; n++) {
       const amp = 0.45 + 0.9 * Math.random();
-      const phase = (Math.random() - 0.5) * 0.9;
-      coeffRe[n] = amp * Math.cos(phase);
-      coeffIm[n] = amp * Math.sin(phase);
+      coeffRe[n] = amp * (Math.random() < 0.5 ? -1 : 1);
     }
     normalizeCoefficients();
   }
+  recordSigns();
   time = 0;
   stationary = count === 1;
   running = false;
@@ -208,10 +211,39 @@ function setInitialState(count) {
   updatePlot(true);
 }
 
+let customRe = new Float64Array(6), customIm = new Float64Array(6);
+customRe[1] = customRe[2] = 1 / Math.sqrt(2);
+const editor = document.getElementById('stateEditor');
+const editorRows = document.getElementById('editorRows');
+editorRows.innerHTML = '<div class="edit-row edit-head"><span>State</span><span>Signed coefficient cₙ</span></div>' + Array.from({length:5}, (_,i) => `<div class="edit-row"><span>n = ${i+1}</span><input aria-label="Signed coefficient ${i+1}" id="amp${i+1}" type="number" step="0.01"></div>`).join('');
+function openEditor() {
+  for(let n=1;n<=5;n++) {
+    const re = nStatesInput.value === 'custom' ? customRe[n] : coeffRe[n];
+    document.getElementById('amp'+n).value = re.toFixed(4);
+  }
+  document.getElementById('editorError').textContent=''; editor.hidden=false;
+}
+function resetSelectedState() {
+  if (nStatesInput.value !== 'custom') {setInitialState(Number(nStatesInput.value));return;}
+  coeffRe.fill(0); coeffIm.fill(0);
+  for(let n=1;n<=5;n++) {coeffRe[n]=customRe[n];coeffIm[n]=customIm[n];}
+  recordSigns();
+  time=0; running=false; stationary=Array.from({length:5},(_,i)=>i+1).filter(n=>Math.hypot(coeffRe[n],coeffIm[n])>1e-9).length===1;
+  measurementEl.textContent='No measurement yet.'; updateButtons();updatePlot(true);
+}
+document.getElementById('editState').addEventListener('click',openEditor);
+document.getElementById('cancelEdit').addEventListener('click',()=>{editor.hidden=true;if(nStatesInput.value==='custom' && !customRe.some(v=>v!==0))nStatesInput.value='2';});
+document.getElementById('applyEdit').addEventListener('click',()=>{
+  const amps=[];let sum=0;
+  for(let n=1;n<=5;n++) {let input=document.getElementById('amp'+n);let a=Number(input.value);if(input.value.trim()===''||!Number.isFinite(a)){document.getElementById('editorError').textContent='Enter five finite real coefficients.';return;}amps[n]=a;sum+=a*a;}
+  if(sum<1e-15){document.getElementById('editorError').textContent='At least one coefficient must be nonzero.';return;}
+  for(let n=1;n<=5;n++){customRe[n]=amps[n]/Math.sqrt(sum);customIm[n]=0;}
+  nStatesInput.value='custom';editor.hidden=true;resetSelectedState();
+});
 function drawEnergyHistogram() {
   const W = energyCanvas.width, H = energyCanvas.height;
   energyCtx.clearRect(0, 0, W, H);
-  const pad = { left:62, right:18, top:16, bottom:72 };
+  const pad = { left:62, right:18, top:16, bottom:88 };
   const pw = W - pad.left - pad.right, ph = H - pad.top - pad.bottom;
   const nShow = 12;
   const maxY = 1.0;
@@ -242,9 +274,12 @@ function drawEnergyHistogram() {
     energyCtx.fillStyle = '#475467'; energyCtx.textAlign='center'; energyCtx.font='12px Arial';
     energyCtx.fillText(String(n), cx, pad.top+ph+19);
     energyCtx.fillText(String(n*n), cx, pad.top+ph+38);
+    energyCtx.font='bold 13px Arial'; energyCtx.fillStyle='#344054';
+    energyCtx.fillText(preparedSigns[n] > 0 ? '+' : preparedSigns[n] < 0 ? '−' : '0', cx, pad.top+ph+57);
   }
-  energyCtx.fillStyle='#667085'; energyCtx.font='11px Arial'; energyCtx.textAlign='center'; energyCtx.fillText('n', pad.left+pw/2, H-24);
-  energyCtx.font='11px Arial'; energyCtx.fillText('E / E₁', pad.left+pw/2, H-8);
+  energyCtx.fillStyle='#667085'; energyCtx.font='11px Arial'; energyCtx.textAlign='center'; energyCtx.fillText('n', pad.left-18, pad.top+ph+19);
+  energyCtx.font='11px Arial'; energyCtx.fillText('E / E₁', pad.left-30, pad.top+ph+38);
+  energyCtx.textAlign='left'; energyCtx.fillText('Sign at preparation (+ / − / 0)', pad.left+6, H-5);
 }
 
 function updateButtons() {
@@ -289,12 +324,12 @@ function buildDensity() {
 
 function updatePlot(rescale = false) {
   const measuredMaxY = buildDensity();
-  if (rescale || !holdScaleInput.checked) heldMaxY = measuredMaxY;
-  const maxY = holdScaleInput.checked ? heldMaxY : measuredMaxY;
+  if (rescale) heldMaxY = measuredMaxY;
+  const maxY = heldMaxY;
   const W = canvas.width, H = canvas.height;
   ctx.clearRect(0, 0, W, H);
 
-  const pad = { left: 62, right: 18, top: 20, bottom: 48 };
+  const pad = plotPad;
   const pw = W - pad.left - pad.right;
   const ph = H - pad.top - pad.bottom;
 
@@ -335,6 +370,16 @@ function updatePlot(rescale = false) {
   ctx.fillText('|psi|^2', 0, 0);
   ctx.restore();
 
+  if (referenceToggle.checked) {
+    const refPx = pad.left + referenceX * pw;
+    ctx.save(); ctx.strokeStyle = '#98a2b3'; ctx.lineWidth = 1; ctx.setLineDash([5,5]);
+    ctx.beginPath(); ctx.moveTo(refPx, pad.top); ctx.lineTo(refPx, pad.top + ph); ctx.stroke(); ctx.restore();
+    // Draggable handle just below the x-axis, above the tick labels.
+    ctx.beginPath(); ctx.arc(refPx, pad.top + ph + 8, 6, 0, 2*Math.PI);
+    ctx.fillStyle='#667085'; ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.3; ctx.stroke();
+  }
+  ctx.save(); ctx.beginPath(); ctx.rect(pad.left, pad.top, pw, ph); ctx.clip();
   ctx.strokeStyle = '#1d4ed8';
   ctx.lineWidth = 2.2;
   ctx.beginPath();
@@ -344,6 +389,15 @@ function updatePlot(rescale = false) {
     if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
   }
   ctx.stroke();
+  if (document.getElementById('midpointLine').checked) {
+    const refIndex = referenceX * SAMPLES;
+    const i0 = Math.floor(refIndex), i1 = Math.min(SAMPLES,i0+1);
+    const refDensity = density[i0] + (density[i1]-density[i0])*(refIndex-i0);
+    const py = pad.top + ph - (refDensity/maxY)*ph;
+    ctx.beginPath(); ctx.arc(pad.left+referenceX*pw,py,3.5,0,2*Math.PI);
+    ctx.fillStyle='#475467'; ctx.fill();
+  }
+  ctx.restore();
 
   ctx.strokeStyle = '#344054';
   ctx.lineWidth = 1;
@@ -355,7 +409,7 @@ function updatePlot(rescale = false) {
   timeLabel.textContent = 't = ' + time.toFixed(2);
   statusEl.textContent = stationary ? 'Energy eigenstate: |psi|^2 is stationary.' : 'Free evolution in the box.';
   updateButtons();
-  if (showEnergyInput.checked) drawEnergyHistogram();
+  drawEnergyHistogram();
 }
 
 function samplePosition() {
@@ -414,6 +468,7 @@ function projectPacketToBasis(vals, x0) {
   // Preserve a simple phase convention: the collapsed packet is real and positive near x0.
   // It is the relative phases of the later eigenstates that produce the subsequent motion.
   normalizeCoefficients();
+  recordSigns();
 }
 
 function measureX() {
@@ -444,20 +499,17 @@ function measureEnergy() {
     r -= probs[n];
     if (r <= 0) { chosen = n; break; }
   }
-  const oldPhase = Math.atan2(coeffIm[chosen], coeffRe[chosen]);
   coeffRe.fill(0); coeffIm.fill(0);
-  coeffRe[chosen] = Math.cos(oldPhase);
-  coeffIm[chosen] = Math.sin(oldPhase);
+  // Choose the global phase so the measured eigenstate is positive at this instant.
+  coeffRe[chosen] = Math.cos(chosen * chosen * time);
+  coeffIm[chosen] = Math.sin(chosen * chosen * time);
+  preparedSigns.fill(0); preparedSigns[chosen] = 1;
   stationary = true;
   // The clock keeps running; only the state becomes stationary.
   measurementEl.innerHTML = 'Energy measured: <b>E = ' + chosen + '<sup>2</sup> E<sub>1</sub></b> &nbsp; (n = ' + chosen + ')';
   updatePlot(true);
 }
 
-showEnergyInput.addEventListener('change', () => {
-  energyCard.hidden = !showEnergyInput.checked;
-  if (showEnergyInput.checked) drawEnergyHistogram();
-});
 runBtn.addEventListener('click', () => {
   if (stationary) {
     // Starting from an energy eigenstate is physically stationary, so the button remains a pause/start control.
@@ -467,13 +519,59 @@ runBtn.addEventListener('click', () => {
   }
   updateButtons();
 });
-resetBtn.addEventListener('click', () => setInitialState(Number(nStatesInput.value)));
+resetBtn.addEventListener('click', () => resetSelectedState());
 measureXBtn.addEventListener('click', measureX);
 measureEBtn.addEventListener('click', measureEnergy);
-speedInput.addEventListener('input', () => speedVal.textContent = Number(speedInput.value).toFixed(2) + 'x');
+document.getElementById('zoomIn').addEventListener('click',()=>{heldMaxY=Math.max(0.05,heldMaxY/1.25);updatePlot();});
+document.getElementById('zoomOut').addEventListener('click',()=>{heldMaxY*=1.25;updatePlot();});
+referenceToggle.addEventListener('change',()=>{
+  if (referenceToggle.checked) {
+    referenceX = 0.5;
+    referencePositionLabel.textContent = 'x/L = 0.500';
+  }
+  referencePositionLabel.hidden = !referenceToggle.checked;
+  updatePlot();
+});
+function referencePointerX(event) {
+  const rect = canvas.getBoundingClientRect();
+  const px = (event.clientX - rect.left) * canvas.width / rect.width;
+  return Math.max(0,Math.min(1,(px-plotPad.left)/(canvas.width-plotPad.left-plotPad.right)));
+}
+function referencePointerY(event) {
+  const rect=canvas.getBoundingClientRect();
+  return (event.clientY-rect.top)*canvas.height/rect.height;
+}
+function moveReference(event) {
+  referenceX=referencePointerX(event);
+  referencePositionLabel.textContent='x/L = '+referenceX.toFixed(3);
+  updatePlot();
+}
+canvas.addEventListener('pointerdown',event=>{
+  if(!referenceToggle.checked)return;
+  const rect=canvas.getBoundingClientRect();
+  const px=(event.clientX-rect.left)*canvas.width/rect.width;
+  const handleX=plotPad.left+referenceX*(canvas.width-plotPad.left-plotPad.right);
+  const handleY=canvas.height-plotPad.bottom+8;
+  const nearHandle=Math.hypot(px-handleX,referencePointerY(event)-handleY)<18;
+  if(!nearHandle)return;
+  draggingReference=true;canvas.setPointerCapture(event.pointerId);moveReference(event);
+});
+canvas.addEventListener('pointermove',event=>{
+  if(draggingReference)moveReference(event);
+  else if(referenceToggle.checked){
+    const rect=canvas.getBoundingClientRect();
+    const px=(event.clientX-rect.left)*canvas.width/rect.width;
+    const hx=plotPad.left+referenceX*(canvas.width-plotPad.left-plotPad.right);
+    canvas.style.cursor=Math.hypot(px-hx,referencePointerY(event)-(canvas.height-plotPad.bottom+8))<18?'grab':'default';
+  }else canvas.style.cursor='default';
+});
+function endReferenceDrag(){draggingReference=false;canvas.style.cursor='default';}
+canvas.addEventListener('pointerup',endReferenceDrag);
+canvas.addEventListener('pointercancel',endReferenceDrag);
+speedInput.addEventListener('input', () => speedVal.textContent = (4 * Number(speedInput.value)).toFixed(2) + 'x');
 dxInput.addEventListener('input', () => dxVal.textContent = Number(dxInput.value).toFixed(2) + ' L');
-holdScaleInput.addEventListener('change', () => updatePlot(true));
-nStatesInput.addEventListener('change', () => setInitialState(Number(nStatesInput.value)));
+
+nStatesInput.addEventListener('change', () => { if (nStatesInput.value === 'custom') openEditor(); else resetSelectedState(); });
 infoBtn.addEventListener('click', () => {
   infoPanel.hidden = !infoPanel.hidden;
 });
@@ -489,6 +587,7 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+energyCard.hidden = false;
 setInitialState(2);
 requestAnimationFrame(frame);
 </script>
