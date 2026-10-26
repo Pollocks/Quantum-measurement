@@ -26,14 +26,15 @@
   button { appearance:none; border:1px solid #98a2b3; border-radius:6px; background:white; padding:8px 11px; font-size:14px; cursor:pointer; }
   button:hover { background:#f5f7fa; }
   button.primary { background:var(--accent); color:#fff; border-color:var(--accent); }
-  button.energy { background:#eef7f6; border-color:#74a9a2; color:#075e56; }
+  button.energy { background:var(--accent); color:#fff; border-color:var(--accent); }
+  button.primary:hover, button.energy:hover { background:#1948a8; border-color:#1948a8; }
   .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   label { font-size:13px; color:#344054; }
   input[type=range] { width:100%; }
   select { width:100%; padding:7px 8px; border:1px solid #98a2b3; border-radius:5px; background:white; }
   .value { float:right; color:#111827; font-variant-numeric:tabular-nums; }
   .status { font-size:13px; line-height:1.4; color:#344054; }
-  .measurement { margin-top:9px; padding:8px 9px; border-radius:6px; background:var(--panel); font-size:13px; line-height:1.45; }
+  .measurement { margin-top:9px; padding:8px 9px; border-radius:6px; background:var(--panel); font-size:15px; line-height:1.45; }
   .legend { display:flex; gap:18px; margin-top:7px; font-size:12px; color:var(--muted); }
   .info-wrap { margin-top:14px; }
   .info-panel { margin-top:9px; padding:10px 11px; border:1px solid #eaecf0; border-radius:7px; background:#fafbfc; font-size:12px; color:#475467; line-height:1.5; }
@@ -280,13 +281,13 @@ function drawEnergyHistogram() {
   energyCtx.lineTo(pad.left + pw, pad.top + ph);
   energyCtx.stroke();
 
-  energyCtx.fillStyle = '#667085'; energyCtx.font = '12px Arial'; energyCtx.textAlign = 'right';
+  energyCtx.fillStyle = '#667085'; energyCtx.font = '13px Arial'; energyCtx.textAlign = 'right';
   for (let k=0;k<=4;k++) {
     const y = k/4, py = pad.top + ph - y*ph;
     energyCtx.fillText(y.toFixed(2), pad.left-9, py+4);
     if (k>0) { energyCtx.strokeStyle='#eef0f3'; energyCtx.beginPath(); energyCtx.moveTo(pad.left,py); energyCtx.lineTo(pad.left+pw,py); energyCtx.stroke(); }
   }
-  energyCtx.save(); energyCtx.translate(17, pad.top+ph/2); energyCtx.rotate(-Math.PI/2); energyCtx.textAlign='center'; energyCtx.fillStyle='#475467'; energyCtx.fillText('Probability P(n)',0,0); energyCtx.restore();
+  energyCtx.font='bold 19px Arial'; energyCtx.save(); energyCtx.translate(22, pad.top+ph/2); energyCtx.rotate(-Math.PI/2); energyCtx.textAlign='center'; energyCtx.fillStyle='#475467'; energyCtx.fillText('Probability P(n)',0,0); energyCtx.restore();
 
   const slot = pw/nShow, barW = slot*0.62;
   for (let n=1;n<=nShow;n++) {
@@ -296,7 +297,7 @@ function drawEnergyHistogram() {
     const x = cx - barW/2, y = pad.top + ph - h;
     energyCtx.fillStyle = '#1d4ed8';
     energyCtx.fillRect(x, y, barW, h);
-    energyCtx.fillStyle = '#475467'; energyCtx.textAlign='center'; energyCtx.font='12px Arial';
+    energyCtx.fillStyle = '#475467'; energyCtx.textAlign='center'; energyCtx.font='13px Arial';
     energyCtx.fillText(String(n), cx, pad.top+ph+19);
     energyCtx.fillText(String(n*n), cx, pad.top+ph+38);
     energyCtx.font='bold 13px Arial'; energyCtx.fillStyle='#344054';
@@ -367,14 +368,16 @@ function updatePlot(rescale = false) {
   ctx.stroke();
 
   ctx.fillStyle = '#667085';
-  ctx.font = '12px Arial';
+  ctx.font = '13px Arial';
   ctx.textAlign = 'center';
   for (let k = 0; k <= 5; k++) {
     const x = k / 5;
     const px = pad.left + x * pw;
     ctx.fillText(x.toFixed(1), px, pad.top + ph + 21);
   }
-  ctx.fillText('position x / L', pad.left + pw / 2, H - 9);
+  ctx.font = 'bold 16px Arial';
+  ctx.fillText('position x / L', pad.left + pw / 2, H - 8);
+  ctx.font = '13px Arial';
 
   ctx.textAlign = 'right';
   for (let k = 0; k <= 4; k++) {
@@ -387,8 +390,9 @@ function updatePlot(rescale = false) {
       ctx.beginPath(); ctx.moveTo(pad.left, py); ctx.lineTo(pad.left + pw, py); ctx.stroke();
     }
   }
+  ctx.font = 'bold 20px Arial';
   ctx.save();
-  ctx.translate(17, pad.top + ph / 2);
+  ctx.translate(23, pad.top + ph / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = 'center';
   ctx.fillStyle = '#475467';
